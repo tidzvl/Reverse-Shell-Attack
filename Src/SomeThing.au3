@@ -99,6 +99,7 @@ Func HackCamera()
 		Sleep(400)
 	Next
 	WinMove($on, "", $pos[0], $pos[1])
+    WinSetOnTop($on, "", 0)
 	WinKill($hwnd)
 	return "Done"
 EndFunc
